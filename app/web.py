@@ -1,5 +1,5 @@
 from flask import render_template
-from app.config import MODULES,TITLE,SHORT
+from app.config import MODULES,EXTRA_MODULES,TITLE,SHORT
 from app.pipeline import execute,load_sample
 from app import store
 def register_pages(app):
@@ -14,3 +14,16 @@ def register_pages(app):
     app.add_url_rule("/",view_func=lambda:page(4))
     for index,(slug,name) in enumerate(MODULES):
         app.add_url_rule("/"+slug,endpoint="page_"+slug,view_func=lambda index=index:page(index))
+    def shared_page():
+        from app.modules.sharedcost import service
+        run=store.latest_shared() or service.execute(service.load_sample())
+        entry_cols=["ref","category","period","accepted_amount","measurement_basis","status"]
+        pool_cols=["pool_ref","category","period","pool_total","accepted_total","deferred_balance","entry_count"]
+        labels={"ref":"单号","category":"费用类别","period":"周期","accepted_amount":"本期转入","measurement_basis":"计量依据",
+                "status":"裁决","pool_ref":"费用池","pool_total":"池总额","accepted_total":"本期转入合计","deferred_balance":"待摊余量",
+                "entry_count":"承接笔数","accepted_total_amt":"本期转入总额","deferred_total":"待摊余量总额","pool_total_amt":"费用池总额",
+                "quarantine":"隔离笔数","signable":"可签认","seal_sha256":"承接封存摘要"}
+        return render_template("sharedcost.html",title=TITLE,short=SHORT,modules=MODULES,extra_modules=EXTRA_MODULES,
+                               index=len(MODULES),run=run,entry_cols=entry_cols,pool_cols=pool_cols,
+                               history=store.shared_history(),labels=labels)
+    app.add_url_rule("/sharedcost",endpoint="page_sharedcost",view_func=shared_page)
